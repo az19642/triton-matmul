@@ -1,0 +1,18 @@
+Triton autotuning for function base_kernel finished after 36.11s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 64, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
+Triton autotuning for function base_kernel finished after 16.48s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 128, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
+Triton autotuning for function base_kernel finished after 20.95s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 128, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 3, maxnreg: None;
+Triton autotuning for function base_kernel finished after 25.69s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 128, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 3, maxnreg: None;
+Triton autotuning for function base_kernel finished after 30.90s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 128, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
+Triton autotuning for function base_kernel finished after 36.14s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 128, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
+Triton autotuning for function base_kernel finished after 41.72s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 128, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 3, maxnreg: None;
+Triton autotuning for function base_kernel finished after 46.91s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 128, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 3, maxnreg: None;
+autotuned-matmul-fp16:
+        K     cuBLAS     Triton
+0  1024.0   7.150300   7.507237
+1  2048.0  12.763535  15.571066
+2  3072.0  25.751348  23.294735
+3  4096.0  32.134495  30.068556
+4  5120.0  34.493568  38.599586
+5  6144.0  43.541298  45.545727
+6  7168.0  49.551682  52.779297
+7  8192.0  53.863167  60.892834
