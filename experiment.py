@@ -2,6 +2,7 @@ import collections
 import os
 import sys
 
+import cutlass
 import torch
 import triton
 import triton.language as tl
@@ -143,13 +144,13 @@ def estimate_optimal_conf() -> int:
 
     bench = triton.testing.Benchmark(
         x_names=["K"],
-        x_vals=[i for i in range(512, 8193, 512)],  # note that len(x_vals) = 16
+        x_vals=[i for i in range(256, 8193, 256)],  # note that len(x_vals) = 16
         line_arg="provider",
-        line_vals=["cublas", "triton"],
-        line_names=["cuBLAS", "Triton"],
-        styles=[("blue", "-"), ("red", "-")],
-        ylabel="runtime (ms)",
-        plot_name=f"autotuned-matmul-fp16",
+        line_vals=["triton", "cublas", "cutlass"],
+        line_names=["Triton", "cuBLAS", "cuTLASS"],
+        styles=[("red", "-"), ("blue", "-"), ("green", "-")],
+        ylabel="Mean runtime (ms)",
+        plot_name=f"per-k-autotuned_matmul_row-major_fp16",
         args={"M": 8192, "N": 8192},
     )
 
@@ -158,16 +159,21 @@ def estimate_optimal_conf() -> int:
         a = torch.randn((M, K), device="cuda", dtype=torch.float16)
         b = torch.randn((K, N), device="cuda", dtype=torch.float16)
 
+        plan = cutlass.op.Gemm(element=torch.float16, layout=cutlass.LayoutType.RowMajor)
+        # c stores the output of matmul(a, b) and d is a dummy tensor
+        c = torch.ones((M, N), device="cuda", dtype=torch.float16)
+        d = torch.ones((M, N), device="cuda", dtype=torch.float16)
+
         if provider == "cublas":
             mean_ms = triton.testing.do_bench(lambda: torch.matmul(a, b))
         elif provider == "triton":
             mean_ms = triton.testing.do_bench(lambda: matmul(a, b, auto_kernel, {}))
         elif provider == "cutlass":
-            raise NotImplementedError
+            mean_ms = triton.testing.do_bench(lambda: plan.run(a, b, c, d))
 
         return mean_ms
 
-    benchmark.run(print_data=True, show_plots=True, save_path="./estimate_optimal_conf")
+    benchmark.run(print_data=True, show_plots=True, save_path="./per-k-autotuned_matmul_perf")
     return len(configs)
 
 
@@ -246,11 +252,11 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
             x_names=["K"],
             x_vals=[i for i in range(256, 8193, 256)],
             line_arg="provider",
-            line_vals=["cublas", "triton"],
-            line_names=["cuBLAS", "Triton"],
-            styles=[("green", "-"), ("blue", "-")],
+            line_vals=["triton", "cublas", "cutlass"],
+            line_names=["Triton", "cuBLAS", "cuTLASS"],
+            styles=[("red", "-"), ("green", "-"), ("blue", "-")],
             ylabel="Time (ms)",
-            plot_name=f"GSM{GSM}-optimal-matmul-performance-fp16",
+            plot_name=f"GSM{GSM}_autotuned_matmul_row-major_fp16",
             args={
                 "M": 8192,
                 "N": 8192,
@@ -265,16 +271,21 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
         a = torch.randn((M, K), device="cuda", dtype=torch.float16)
         b = torch.randn((K, N), device="cuda", dtype=torch.float16)
 
+        plan = cutlass.op.Gemm(element=torch.float16, layout=cutlass.LayoutType.RowMajor)
+        # c stores the output of matmul(a, b) and d is a dummy tensor
+        c = torch.ones((M, N), device="cuda", dtype=torch.float16)
+        d = torch.ones((M, N), device="cuda", dtype=torch.float16)
+
         if provider == "cublas":
             mean_ms = triton.testing.do_bench(lambda: torch.matmul(a, b))
         elif provider == "triton":
             mean_ms = triton.testing.do_bench(lambda: matmul(a, b, optimal_kernel, {"GROUP_SIZE_M": GSM}))
         elif provider == "cutlass":
-            raise NotImplementedError
+            mean_ms = triton.testing.do_bench(lambda: plan.run(a, b, c, d))
 
         return mean_ms
 
-    benchmark.run(print_data=True, show_plots=True, save_path="./optimal_perf")
+    benchmark.run(print_data=True, show_plots=True, save_path="./autotuned_matmul_perf")
 
 
 def main():

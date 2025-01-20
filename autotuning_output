@@ -1,18 +1,34 @@
-Triton autotuning for function base_kernel finished after 36.11s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 64, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
-Triton autotuning for function base_kernel finished after 16.48s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 128, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
-Triton autotuning for function base_kernel finished after 20.95s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 128, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 3, maxnreg: None;
-Triton autotuning for function base_kernel finished after 25.69s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 128, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 3, maxnreg: None;
-Triton autotuning for function base_kernel finished after 30.90s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 128, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
-Triton autotuning for function base_kernel finished after 36.14s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 128, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
-Triton autotuning for function base_kernel finished after 41.72s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 128, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 3, maxnreg: None;
-Triton autotuning for function base_kernel finished after 46.91s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 128, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 3, maxnreg: None;
-autotuned-matmul-fp16:
-        K     cuBLAS     Triton
-0  1024.0   7.150300   7.507237
-1  2048.0  12.763535  15.571066
-2  3072.0  25.751348  23.294735
-3  4096.0  32.134495  30.068556
-4  5120.0  34.493568  38.599586
-5  6144.0  43.541298  45.545727
-6  7168.0  49.551682  52.779297
-7  8192.0  53.863167  60.892834
+Triton autotuning for function base_kernel finished after 15.87s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 64, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
+Triton autotuning for function base_kernel finished after 5.81s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 128, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
+Triton autotuning for function base_kernel finished after 6.67s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 64, GROUP_SIZE_M: 4, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
+Triton autotuning for function base_kernel finished after 7.84s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 64, GROUP_SIZE_M: 4, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
+Triton autotuning for function base_kernel finished after 9.23s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 64, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
+Triton autotuning for function base_kernel finished after 10.29s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 64, GROUP_SIZE_M: 4, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
+Triton autotuning for function base_kernel finished after 11.58s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 64, GROUP_SIZE_M: 4, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
+Triton autotuning for function base_kernel finished after 12.64s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 64, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
+Triton autotuning for function base_kernel finished after 13.59s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 64, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
+Triton autotuning for function base_kernel finished after 14.79s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 64, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
+Triton autotuning for function base_kernel finished after 16.10s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 64, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
+Triton autotuning for function base_kernel finished after 17.43s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 64, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
+Triton autotuning for function base_kernel finished after 18.91s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 64, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
+Triton autotuning for function base_kernel finished after 20.25s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 64, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
+Triton autotuning for function base_kernel finished after 21.50s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 64, GROUP_SIZE_M: 4, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
+Triton autotuning for function base_kernel finished after 22.53s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 128, GROUP_SIZE_M: 8, num_warps: 16, num_ctas: 1, num_stages: 2, maxnreg: None;
+per-k-autotuned_matmul_row-major_fp16:
+         K     Triton     cuBLAS    cuTLASS
+0    512.0   3.417639   3.197406   4.703588
+1   1024.0   6.933591   5.813007   7.575071
+2   1536.0  10.572601   9.087377  12.351575
+3   2048.0  13.999680  12.267987  15.725461
+4   2560.0  18.133657  18.644629  22.741802
+5   3072.0  22.282370  23.048264  28.243521
+6   3584.0  24.892523  26.336458  31.366743
+7   4096.0  27.617035  29.139212  32.515442
+8   4608.0  30.929876  32.801617  37.722450
+9   5120.0  34.499886  32.485523  43.776432
+10  5632.0  38.586208  37.527248  46.770000
+11  6144.0  41.598396  39.157616  52.556641
+12  6656.0  44.711342  46.134178  55.048351
+13  7168.0  49.794098  46.956543  59.858849
+14  7680.0  53.561314  47.695873  68.468735
+15  8192.0  58.515839  49.677376  66.062340
