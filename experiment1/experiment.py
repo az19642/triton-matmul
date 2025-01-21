@@ -75,7 +75,9 @@ def matmul(a, b, kernel, GROUP_SIZE_M):
     M, K = a.shape
     K, N = b.shape
     c = torch.empty((M, N), device=a.device, dtype=torch.float16)
-    grid = lambda META: (triton.cdiv(M, META["BLOCK_SIZE_M"]) * triton.cdiv(N, META["BLOCK_SIZE_N"]),)
+    grid = lambda META: (
+        triton.cdiv(M, META["BLOCK_SIZE_M"]) * triton.cdiv(N, META["BLOCK_SIZE_N"]),
+    )
     kernel[grid](
         a,
         b,
@@ -117,7 +119,9 @@ def run_benchmarks(block_size_lst, gsm_lst, num_stages_lst, num_warps_lst) -> No
                             )
                         )
 
-    tunable_kernel = triton.autotune(configs=[configs], key=["K", "GROUP_SIZE_M"])(base_kernel)
+    tunable_kernel = triton.autotune(configs=configs, key=["K", "GROUP_SIZE_M"])(
+        base_kernel
+    )
 
     benches = [
         triton.testing.Benchmark(
@@ -143,7 +147,9 @@ def run_benchmarks(block_size_lst, gsm_lst, num_stages_lst, num_warps_lst) -> No
         a = torch.randn((M, K), device="cuda", dtype=torch.float16)
         b = torch.randn((K, N), device="cuda", dtype=torch.float16)
 
-        plan = cutlass.op.Gemm(element=torch.float16, layout=cutlass.LayoutType.RowMajor)
+        plan = cutlass.op.Gemm(
+            element=torch.float16, layout=cutlass.LayoutType.RowMajor
+        )
         c = torch.empty((M, N), device="cuda", dtype=torch.float16)
         d = torch.empty((M, N), device="cuda", dtype=torch.float16)
 
@@ -152,11 +158,16 @@ def run_benchmarks(block_size_lst, gsm_lst, num_stages_lst, num_warps_lst) -> No
         elif provider == "cublas":
             mean_ms = triton.testing.do_bench(lambda: torch.matmul(a, b))
         elif provider == "cutlass":
+            print("triton")
             mean_ms = triton.testing.do_bench(lambda: plan.run(a, b, c, d))
 
         return mean_ms
 
-    benchmark.run(print_data=True, show_plots=True, save_path="./per-k-gsm-triton-autotuned_matmul_perf")
+    benchmark.run(
+        print_data=True,
+        show_plots=True,
+        save_path="./per-k-gsm-triton-autotuned_matmul_perf",
+    )
 
 
 def main():
