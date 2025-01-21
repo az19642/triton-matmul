@@ -84,7 +84,9 @@ def matmul(a, b, kernel, kernel_params: dict):
 
     c = torch.empty((M, N), device=a.device, dtype=torch.float16)
 
-    grid = lambda META: (triton.cdiv(M, META["BLOCK_SIZE_M"]) * triton.cdiv(N, META["BLOCK_SIZE_N"]),)
+    grid = lambda META: (
+        triton.cdiv(M, META["BLOCK_SIZE_M"]) * triton.cdiv(N, META["BLOCK_SIZE_N"]),
+    )
 
     kernel[grid](
         a,
@@ -159,7 +161,9 @@ def estimate_optimal_conf() -> int:
         a = torch.randn((M, K), device="cuda", dtype=torch.float16)
         b = torch.randn((K, N), device="cuda", dtype=torch.float16)
 
-        plan = cutlass.op.Gemm(element=torch.float16, layout=cutlass.LayoutType.RowMajor)
+        plan = cutlass.op.Gemm(
+            element=torch.float16, layout=cutlass.LayoutType.RowMajor
+        )
         # c stores the output of matmul(a, b) and d is a dummy tensor
         c = torch.ones((M, N), device="cuda", dtype=torch.float16)
         d = torch.ones((M, N), device="cuda", dtype=torch.float16)
@@ -173,7 +177,9 @@ def estimate_optimal_conf() -> int:
 
         return mean_ms
 
-    benchmark.run(print_data=True, show_plots=True, save_path="./per-k-autotuned_matmul_perf")
+    benchmark.run(
+        print_data=True, show_plots=True, save_path="./per-k-autotuned_matmul_perf"
+    )
     return len(configs)
 
 
@@ -245,7 +251,9 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
     """
 
     # We set the configuration of the kernel using an autotuner with one config; Triton does not seem to provide another way
-    optimal_kernel = triton.autotune(configs=[optimal_conf], key=["M", "N"])(base_kernel)  # static
+    optimal_kernel = triton.autotune(configs=[optimal_conf], key=["M", "N"])(
+        base_kernel
+    )  # static
 
     benches = [
         triton.testing.Benchmark(
@@ -263,7 +271,10 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
                 "GSM": GSM,
             },
         )
-        for GSM in list({optimal_gsm - 2 * i for i in range(4)} | {optimal_gsm + 2 * i for i in range(4)})
+        for GSM in list(
+            {optimal_gsm - 2 * i for i in range(4)}
+            | {optimal_gsm + 2 * i for i in range(4)}
+        )
     ]
 
     @triton.testing.perf_report(benches)
@@ -271,7 +282,9 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
         a = torch.randn((M, K), device="cuda", dtype=torch.float16)
         b = torch.randn((K, N), device="cuda", dtype=torch.float16)
 
-        plan = cutlass.op.Gemm(element=torch.float16, layout=cutlass.LayoutType.RowMajor)
+        plan = cutlass.op.Gemm(
+            element=torch.float16, layout=cutlass.LayoutType.RowMajor
+        )
         # c stores the output of matmul(a, b) and d is a dummy tensor
         c = torch.ones((M, N), device="cuda", dtype=torch.float16)
         d = torch.ones((M, N), device="cuda", dtype=torch.float16)
@@ -279,7 +292,9 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
         if provider == "cublas":
             mean_ms = triton.testing.do_bench(lambda: torch.matmul(a, b))
         elif provider == "triton":
-            mean_ms = triton.testing.do_bench(lambda: matmul(a, b, optimal_kernel, {"GROUP_SIZE_M": GSM}))
+            mean_ms = triton.testing.do_bench(
+                lambda: matmul(a, b, optimal_kernel, {"GROUP_SIZE_M": GSM})
+            )
         elif provider == "cutlass":
             mean_ms = triton.testing.do_bench(lambda: plan.run(a, b, c, d))
 
@@ -290,14 +305,16 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
 
 def main():
     stdout = sys.stdout
-    with open("autotuning_output", "w") as sys.stdout:
-        os.environ["TRITON_PRINT_AUTOTUNING"] = "1"
-        num_configs = estimate_optimal_conf()
+    try:
+        with open("autotuning_output.txt", "w") as sys.stdout:
+            os.environ["TRITON_PRINT_AUTOTUNING"] = "1"
+            num_configs = estimate_optimal_conf()
+    finally:
+        sys.stdout = stdout
 
-    sys.stdout = stdout  # reset stdout
-
-    optimal_config, optimal_gsm = get_most_freq_config("autotuning_output", num_configs)
-
+    optimal_config, optimal_gsm = get_most_freq_config(
+        "autotuning_output.txt", num_configs
+    )
     os.environ["MLIR_ENABLE_DUMP"] = "1"
     os.environ["TRITON_ALWAYS_COMPILE"] = "1"
     os.environ["LLVM_IR_ENABLE_DUMP"] = "1"

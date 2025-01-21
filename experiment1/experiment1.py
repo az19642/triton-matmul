@@ -160,6 +160,8 @@ def run_benchmarks(block_size_lst, gsm_lst, num_stages_lst, num_warps_lst) -> No
         elif provider == "cutlass":
             print("triton")
             mean_ms = triton.testing.do_bench(lambda: plan.run(a, b, c, d))
+        else:
+            raise ValueError(f"Invalid provider: {provider}")
 
         return mean_ms
 
@@ -184,7 +186,7 @@ def main():
 
     stdout = sys.stdout
     try:
-        with open("autotuning_output", "w") as sys.stdout:
+        with open("autotuning_output.txt", "w") as sys.stdout:
             run_benchmarks(block_size_lst, gsm_list, num_stages_lst, num_warps_lst)
     finally:
         sys.stdout = stdout  # reset stdout
