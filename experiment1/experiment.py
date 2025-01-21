@@ -182,8 +182,12 @@ def main():
     num_warps_lst = [8, 16, 32, 64]
     gsm_list = [1, 4, 8, 12, 14, 16]
 
-    with open("autotuning_output", "w") as sys.stdout:
-        run_benchmarks(block_size_lst, gsm_list, num_stages_lst, num_warps_lst)
+    stdout = sys.stdout
+    try:
+        with open("autotuning_output", "w") as sys.stdout:
+            run_benchmarks(block_size_lst, gsm_list, num_stages_lst, num_warps_lst)
+    finally:
+        sys.stdout = stdout  # reset stdout
 
 
 if __name__ == "__main__":
