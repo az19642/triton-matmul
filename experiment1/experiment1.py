@@ -8,6 +8,7 @@ import triton.language as tl
 
 MAX_BLOCK_SIZE_PROD = 2**23
 
+
 def base_kernel(
     a_ptr,
     b_ptr,
@@ -108,7 +109,6 @@ def run_benchmarks(configs, benches):
 
         if provider == "triton":
             print(f"gsm{GSM}_k{K}")
-            sys.stdout.flush()
             mean_ms = triton.testing.do_bench(lambda: matmul(a, b, tunable_kernel, GSM))
         elif provider == "cublas":
             mean_ms = triton.testing.do_bench(lambda: torch.matmul(a, b))
@@ -183,9 +183,9 @@ def main():
     block_size_lst = [32, 64, 128, 256, 512, 1024]
     num_stages_lst = [2, 3]
     num_warps_lst = [8, 16, 32]
-    gsm_list = [1, 2, 4, 8, 12, 16]
+    gsm_lst = [1, 2, 4, 8, 12, 16]
 
-    benches = get_benches(gsm_list)
+    benches = get_benches(gsm_lst)
     assert benches, "No benches to run"
     configs = get_configs(block_size_lst, num_stages_lst, num_warps_lst)
     assert configs, "No configurations to autotune over"

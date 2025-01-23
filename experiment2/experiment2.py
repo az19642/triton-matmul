@@ -6,19 +6,10 @@ import cutlass
 import torch
 import triton
 import triton.language as tl
-from torch_cublas_matmul_int8 import matmul_int8
 
-MAX_BLOCK_SIZE_PROD = 2 ** 23
-TORCH_HAS_INT8 = hasattr(torch, "int8")
-block_size_lst = [16, 32, 64, 128, 256, 512, 1024]
-ns_lst = [1, 2, 3]
-nw_lst = [8, 16, 32]
-gsm_lst = [1, 2, 4, 8, 12, 16]
-
-sys.stdout.reconfigure(line_buffering=True, write_through=True)
+MAX_BLOCK_SIZE_PROD = 2**23
 
 
-@triton.jit
 def base_kernel(
     a_ptr,
     b_ptr,
@@ -94,9 +85,7 @@ def matmul(a, b, kernel, kernel_params: dict):
 
     c = torch.empty((M, N), device=a.device, dtype=torch.float16)
 
-    grid = lambda META: (
-        triton.cdiv(M, META["BLOCK_SIZE_M"]) * triton.cdiv(N, META["BLOCK_SIZE_N"]),
-    )
+    grid = lambda META: (triton.cdiv(M, META["BLOCK_SIZE_M"]) * triton.cdiv(N, META["BLOCK_SIZE_N"]),)
 
     kernel[grid](
         a,
@@ -117,7 +106,7 @@ def matmul(a, b, kernel, kernel_params: dict):
     return c
 
 
-def estimate_optimal_conf(block_size_lst, ns_lst, nw_lst, gsm_lst) -> int:
+def estimate_optimal_conf(configs) -> int:
     """
     Estimate the optimal configuration for matmul by autotuning with a subset of the K values (0, 8193).
 
@@ -127,67 +116,43 @@ def estimate_optimal_conf(block_size_lst, ns_lst, nw_lst, gsm_lst) -> int:
 
     :return: the number of configurations used in the autotuning process
     """
-    configs = []
-    for bsm in block_size_lst:
-        for bsn in block_size_lst:
-            for bsk in block_size_lst:
-                for gsm in gsm_lst:
-                    for ns in ns_lst:
-                        for nw in nw_lst:
-                            if bsm * bsn * bsk * (ns - 1) > MAX_BLOCK_SIZE_PROD:
-                                continue
-                            configs.append(
-                                triton.Config(
-                                    {
-                                        "BLOCK_SIZE_M": bsm,
-                                        "BLOCK_SIZE_N": bsn,
-                                        "BLOCK_SIZE_K": bsk,
-                                        "GROUP_SIZE_M": gsm,
-                                    },
-                                    num_stages=ns,
-                                    num_warps=nw,
-                                )
-                            )
 
     # set kernel to be autotunable with the above configs
     auto_kernel = triton.autotune(configs=configs, key=["K"])(base_kernel)
 
-    bench = triton.testing.Benchmark(
-        x_names=["K"],
-        x_vals=[i for i in range(512, 8193, 512)],
-        line_arg="provider",
-        line_vals=["triton", "cublas", "cutlass"],
-        line_names=["Triton", "cuBLAS", "cuTLASS"],
-        styles=[("red", "-"), ("blue", "-"), ("green", "-")],
-        ylabel="Mean runtime (ms)",
-        plot_name=f"per-k-autotuned_matmul_row-major_fp16",
-        args={"M": 8192, "N": 8192},
+    @triton.testing.perf_report(
+        triton.testing.Benchmark(
+            x_names=["K"],
+            x_vals=[i for i in range(512, 8193, 512)],
+            line_arg="provider",
+            line_vals=["triton", "cublas", "cutlass"],
+            line_names=["Triton", "cuBLAS", "cuTLASS"],
+            styles=[("red", "-"), ("blue", "-"), ("green", "-")],
+            ylabel="Mean runtime (ms)",
+            plot_name=f"per-k-autotuned_matmul_row-major_fp16",
+            args={"M": 8192, "N": 8192},
+        )
     )
-
-    @triton.testing.perf_report(bench)
     def benchmark(M, N, K, provider):
         a = torch.randn((M, K), device="cuda", dtype=torch.float16)
         b = torch.randn((K, N), device="cuda", dtype=torch.float16)
 
-        plan = cutlass.op.Gemm(
-            element=torch.float16, layout=cutlass.LayoutType.RowMajor
-        )
-        # c stores the output of matmul(a, b) and d is a dummy tensor
-        c = torch.ones((M, N), device="cuda", dtype=torch.float16)
-        d = torch.ones((M, N), device="cuda", dtype=torch.float16)
-
-        if provider == "cublas":
-            mean_ms = triton.testing.do_bench(lambda: torch.matmul(a, b))
-        elif provider == "triton":
+        if provider == "triton":
             mean_ms = triton.testing.do_bench(lambda: matmul(a, b, auto_kernel, {}))
+        elif provider == "cublas":
+            mean_ms = triton.testing.do_bench(lambda: torch.matmul(a, b))
         elif provider == "cutlass":
+            plan = cutlass.op.Gemm(element=torch.float16, layout=cutlass.LayoutType.RowMajor)
+            # c stores the output of matmul(a, b) and d is a dummy tensor
+            c = torch.ones((M, N), device="cuda", dtype=torch.float16)
+            d = torch.ones((M, N), device="cuda", dtype=torch.float16)
             mean_ms = triton.testing.do_bench(lambda: plan.run(a, b, c, d))
+        else:
+            raise ValueError(f"Invalid provider: {provider}")
 
         return mean_ms
 
-    benchmark.run(
-        print_data=False, show_plots=False, save_path="./k-autotuned_matmul_perf"
-    )
+    benchmark.run(print_data=False, show_plots=False, save_path="./k-autotuned_matmul_perf")
     return len(configs)
 
 
@@ -259,14 +224,9 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
     """
 
     # We set the configuration of the kernel using an autotuner with one config; Triton does not seem to provide another way
-    optimal_kernel = triton.autotune(configs=[optimal_conf], key=["M", "N"])(
-        base_kernel
-    )  # static
-    benches = []
-    for int8_inputs in [False, True]:
-        if int8_inputs and not TORCH_HAS_INT8:
-            continue
-        benches.append(triton.testing.Benchmark(
+    optimal_kernel = triton.autotune(configs=[optimal_conf], key=["M", "N"])(triton.jit()(base_kernel))  # static
+    benches = [
+        triton.testing.Benchmark(
             x_names=["K"],
             x_vals=[i for i in range(512, 8193, 512)],
             line_arg="provider",
@@ -274,73 +234,89 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
             line_names=["Triton", "cuBLAS", "cuTLASS"],
             styles=[("red", "-"), ("green", "-"), ("blue", "-")],
             ylabel="Time (ms)",
-            plot_name=f"GSM{GSM}_autotuned_matmul_row-major-" + ("int8" if int8_inputs else "fp16"), 
-            args={
-                "M": 8192,
-                "N": 8192,
-                "GSM": GSM,
-                int8_inputs: int8_inputs,
-            },
+            plot_name=f"GSM{GSM}_autotuned_matmul_row-major-fp16",
+            args={"M": 8192, "N": 8192, "GSM": GSM},
         )
-        for GSM in list(
-            {optimal_gsm - 2 * i for i in range(4)}
-            | {optimal_gsm + 2 * i for i in range(4)}
-        ))
+        for GSM in list({optimal_gsm - 2 * i for i in range(4)} | {optimal_gsm + 2 * i for i in range(4)})
+    ]
 
     @triton.testing.perf_report(benches)
-    def benchmark(M, N, K, GSM, provider, int8_inputs):
-        if int8_inputs:
-            a = torch.randint(-128, 127, (M, K), device="cuda", dtype=torch.int8)
-            b = torch.randint(-128, 127, (K, N), device="cuda", dtype=torch.int8)
-            c = torch.empty((M, N), device="cuda", dtype=torch.int32)
-            d = torch.empty((M, N), device="cuda", dtype=torch.int32)
-            plan = cutlass.op.Gemm(
-                element=torch.int8, 
-                layout=cutlass.LayoutType.RowMajor, 
-                accumulator_type=cutlass.type.int32
-            )
-        else:
-            a = torch.randn((M, K), device="cuda", dtype=torch.float16)
-            b = torch.randn((K, N), device="cuda", dtype=torch.float16)
+    def benchmark(
+        M,
+        N,
+        K,
+        GSM,
+        provider,
+    ):
+        a = torch.randn((M, K), device="cuda", dtype=torch.float16)
+        b = torch.randn((K, N), device="cuda", dtype=torch.float16)
+
+        if provider == "triton":
+            print(f"gsm{GSM}_k{K}")
+            mean_ms = triton.testing.do_bench(lambda: matmul(a, b, optimal_kernel, {"GROUP_SIZE_M": GSM}))
+        elif provider == "cublas":
+            mean_ms = triton.testing.do_bench(lambda: torch.matmul(a, b))
+        elif provider == "cutlass":
             c = torch.empty((M, N), device="cuda", dtype=torch.float16)
             d = torch.empty((M, N), device="cuda", dtype=torch.float16)
-            plan = cutlass.op.Gemm(
-                element=torch.float16, layout=cutlass.LayoutType.RowMajor
-            )
-
-        if provider == "cublas":
-            if int8_inputs:
-                mean_ms = triton.testing.do_bench(lambda: matmul_int8(a, b))
-            else:
-                mean_ms = triton.testing.do_bench(lambda: torch.matmul(a, b))
-        elif provider == "triton":
-            mean_ms = triton.testing.do_bench(
-                lambda: matmul(a, b, optimal_kernel, {"GROUP_SIZE_M": GSM})
-            )
-        elif provider == "cutlass":
+            plan = cutlass.op.Gemm(element=torch.float16, layout=cutlass.LayoutType.RowMajor)
             mean_ms = triton.testing.do_bench(lambda: plan.run(a, b, c, d))
+        else:
+            raise ValueError(f"Invalid provider: {provider}")
 
         return mean_ms
 
     benchmark.run(print_data=True, show_plots=True, save_path="./autotuned_matmul_perf")
 
 
+def get_configs(block_size_lst, gsm_lst, num_stages_lst, num_warps_lst):
+    return [
+        triton.Config(
+            {
+                "BLOCK_SIZE_M": BSM,
+                "BLOCK_SIZE_N": BSN,
+                "BLOCK_SIZE_K": BSK,
+                "GROUP_SIZE_M": GSM,
+            },
+            num_stages=ns,
+            num_warps=nw,
+        )
+        for BSM in block_size_lst
+        for BSN in block_size_lst
+        for BSK in block_size_lst
+        for GSM in gsm_lst
+        for ns in num_stages_lst
+        if BSM * BSN * BSK * (ns - 1) > MAX_BLOCK_SIZE_PROD
+        for nw in num_warps_lst
+    ]
+
+
 def main():
+    global output_dir
+    output_dir = os.environ.get("SLURM_TMPDIR")
+    if not output_dir:
+        output_dir = "./"
+
+    # Lists of values for each parameter to grid tune over for intial config search
+    block_size_lst = [32, 64, 128, 256, 512, 1024]
+    num_stages_lst = [2, 3]
+    num_warps_lst = [8, 16, 32]
+    gsm_lst = [1, 2, 4, 8, 12, 16]
+    configs = get_configs(block_size_lst, gsm_lst, num_stages_lst, num_warps_lst)
+    assert configs, "No configurations to autotune over"
+
+    stdout = sys.stdout
+    with open("autotuning_output.txt", "w") as sys.stdout:
+        sys.stdout.reconfigure(line_buffering=True, write_through=True)
+        os.environ["TRITON_PRINT_AUTOTUNING"] = "1"
+        num_configs = estimate_optimal_conf(configs)
+    sys.stdout = stdout
+
+    os.environ["TRITON_PRINT_AUTOTUNING"] = "0"
     os.environ["MLIR_ENABLE_DUMP"] = "1"
-    os.environ["TRITON_ALWAYS_COMPILE"] = "1"
     os.environ["LLVM_IR_ENABLE_DUMP"] = "1"
     os.environ["MLIR_DUMP_PATH"] = "dump.out"
-    stdout = sys.stdout
-    try:
-        with open("autotuning_output.txt", "w") as sys.stdout:
-            os.environ["TRITON_PRINT_AUTOTUNING"] = "1"
-            num_configs = estimate_optimal_conf(block_size_lst, ns_lst, nw_lst, gsm_lst)
-    finally:
-        sys.stdout = stdout
-
-    optimal_config, optimal_gsm = get_most_freq_config(
-        "autotuning_output.txt", num_configs
-    )
+    optimal_config, optimal_gsm = get_most_freq_config("autotuning_output.txt", num_configs)
     plot_near_optimal(optimal_config, optimal_gsm)
 
 
