@@ -7,7 +7,8 @@ import torch
 import triton
 import triton.language as tl
 
-MAX_BLOCK_SIZE_PROD = 2**23
+MAX_BLOCK_SIZE_PROD = 2 ** 23
+TORCH_HAS_INT8 = hasattr(torch, "qint8")
 block_size_lst = [16, 32, 64, 128, 256, 512, 1024]
 ns_lst = [1, 2, 3]
 nw_lst = [8, 16, 32]
@@ -260,9 +261,11 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
     optimal_kernel = triton.autotune(configs=[optimal_conf], key=["M", "N"])(
         base_kernel
     )  # static
-
-    benches = [
-        triton.testing.Benchmark(
+    benches = []
+    for int8_inputs in [False, True]:
+        if int8_inputs and not TORCH_HAS_INT8:
+            continue
+        benches.append(triton.testing.Benchmark(
             x_names=["K"],
             x_vals=[i for i in range(512, 8193, 512)],
             line_arg="provider",
@@ -270,21 +273,21 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
             line_names=["Triton", "cuBLAS", "cuTLASS"],
             styles=[("red", "-"), ("green", "-"), ("blue", "-")],
             ylabel="Time (ms)",
-            plot_name=f"GSM{GSM}_autotuned_matmul_row-major_fp16",
+            plot_name=f"GSM{GSM}_autotuned_matmul_row-major-" + ("int8" if int8_inputs else "fp16"), 
             args={
                 "M": 8192,
                 "N": 8192,
                 "GSM": GSM,
+                int8_inputs: int8_inputs,
             },
         )
         for GSM in list(
             {optimal_gsm - 2 * i for i in range(4)}
             | {optimal_gsm + 2 * i for i in range(4)}
-        )
-    ]
+        ))
 
     @triton.testing.perf_report(benches)
-    def benchmark(M, N, K, GSM, provider):
+    def benchmark(M, N, K, GSM, provider, int8_inputs):
         a = torch.randn((M, K), device="cuda", dtype=torch.float16)
         b = torch.randn((K, N), device="cuda", dtype=torch.float16)
 
@@ -294,6 +297,12 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
         # c stores the output of matmul(a, b) and d is a dummy tensor
         c = torch.ones((M, N), device="cuda", dtype=torch.float16)
         d = torch.ones((M, N), device="cuda", dtype=torch.float16)
+        if int8_inputs:
+            a = a.to(torch.qint8)
+            b = b.to(torch.qint8)
+            plan = cutlass.op.Gemm(
+                element=torch.qint8, layout=cutlass.LayoutType.RowMajor
+            )
 
         if provider == "cublas":
             mean_ms = triton.testing.do_bench(lambda: torch.matmul(a, b))
