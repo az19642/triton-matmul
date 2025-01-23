@@ -118,7 +118,7 @@ def estimate_optimal_conf(configs) -> int:
     """
 
     # set kernel to be autotunable with the above configs
-    auto_kernel = triton.autotune(configs=configs, key=["K"])(base_kernel)
+    tunable_kernel = triton.autotune(configs=configs, key=["K"])(triton.jit()(base_kernel))
 
     @triton.testing.perf_report(
         triton.testing.Benchmark(
@@ -138,12 +138,11 @@ def estimate_optimal_conf(configs) -> int:
         b = torch.randn((K, N), device="cuda", dtype=torch.float16)
 
         if provider == "triton":
-            mean_ms = triton.testing.do_bench(lambda: matmul(a, b, auto_kernel, {}))
+            mean_ms = triton.testing.do_bench(lambda: matmul(a, b, tunable_kernel, {}))
         elif provider == "cublas":
             mean_ms = triton.testing.do_bench(lambda: torch.matmul(a, b))
         elif provider == "cutlass":
             plan = cutlass.op.Gemm(element=torch.float16, layout=cutlass.LayoutType.RowMajor)
-            # c stores the output of matmul(a, b) and d is a dummy tensor
             c = torch.ones((M, N), device="cuda", dtype=torch.float16)
             d = torch.ones((M, N), device="cuda", dtype=torch.float16)
             mean_ms = triton.testing.do_bench(lambda: plan.run(a, b, c, d))
@@ -152,11 +151,16 @@ def estimate_optimal_conf(configs) -> int:
 
         return mean_ms
 
-    benchmark.run(print_data=False, show_plots=False, save_path="./k-autotuned_matmul_perf")
+    benchmark.run(
+        print_data=False,
+        show_plots=False,
+        save_path=os.path.join(output_dir, os.path.basename("k-autotuned_matmul_perf")),
+    )
+
     return len(configs)
 
 
-def extract_config(line: str) -> tuple[dict, dict]:
+def _extract_config(line: str) -> tuple[dict, dict]:
     """
     Extract the meta and compilation parameters from a line in the autotuning output.
 
@@ -206,14 +210,14 @@ def get_most_freq_config(file_path: str, num_configs: int) -> tuple[triton.Confi
 
     print(f"Most frequent config: {most_freq}")
 
-    meta_dct, comp_dct = extract_config(most_freq)
+    meta_dct, comp_dct = _extract_config(most_freq)
     gsm = meta_dct["GROUP_SIZE_M"]
     del meta_dct["GROUP_SIZE_M"]
 
     return triton.Config(meta_dct, **comp_dct), gsm
 
 
-def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
+def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm: int) -> None:
     """
     Plot the performance of the matmul kernel for different GROUP_SIZE_M values.
 
@@ -224,7 +228,7 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
     """
 
     # We set the configuration of the kernel using an autotuner with one config; Triton does not seem to provide another way
-    optimal_kernel = triton.autotune(configs=[optimal_conf], key=["M", "N"])(triton.jit()(base_kernel))  # static
+    optimal_kernel = triton.autotune(configs=[optimal_conf], key=["M", "N"])(triton.jit()(base_kernel))  # static key
     benches = [
         triton.testing.Benchmark(
             x_names=["K"],
@@ -286,16 +290,15 @@ def get_configs(block_size_lst, gsm_lst, num_stages_lst, num_warps_lst):
         for BSK in block_size_lst
         for GSM in gsm_lst
         for ns in num_stages_lst
-        if BSM * BSN * BSK * (ns - 1) > MAX_BLOCK_SIZE_PROD
         for nw in num_warps_lst
+        if BSM * BSN * BSK * (ns - 1) <= MAX_BLOCK_SIZE_PROD
     ]
 
 
 def main():
     global output_dir
     output_dir = os.environ.get("SLURM_TMPDIR")
-    if not output_dir:
-        output_dir = "./"
+    autotuning_path = os.path.join(output_dir, os.path.basename("autotuning.out"))
 
     # Lists of values for each parameter to grid tune over for intial config search
     block_size_lst = [32, 64, 128, 256, 512, 1024]
@@ -306,9 +309,9 @@ def main():
     assert configs, "No configurations to autotune over"
 
     stdout = sys.stdout
-    with open("autotuning_output.txt", "w") as sys.stdout:
-        sys.stdout.reconfigure(line_buffering=True, write_through=True)
+    with open(autotuning_path, "w") as sys.stdout:
         os.environ["TRITON_PRINT_AUTOTUNING"] = "1"
+        sys.stdout.reconfigure(line_buffering=True, write_through=True)
         num_configs = estimate_optimal_conf(configs)
     sys.stdout = stdout
 
@@ -316,7 +319,7 @@ def main():
     os.environ["MLIR_ENABLE_DUMP"] = "1"
     os.environ["LLVM_IR_ENABLE_DUMP"] = "1"
     os.environ["MLIR_DUMP_PATH"] = "dump.out"
-    optimal_config, optimal_gsm = get_most_freq_config("autotuning_output.txt", num_configs)
+    optimal_config, optimal_gsm = get_most_freq_config(autotuning_path, num_configs)
     plot_near_optimal(optimal_config, optimal_gsm)
 
 
