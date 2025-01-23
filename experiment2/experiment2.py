@@ -152,7 +152,7 @@ def estimate_optimal_conf() -> int:
         line_names=["Triton", "cuBLAS", "cuTLASS"],
         styles=[("red", "-"), ("blue", "-"), ("green", "-")],
         ylabel="Mean runtime (ms)",
-        plot_name=f"per-k-autotuned_matmul_row-major_fp16",
+        plot_name=f"k-autotuned_matmul_row-major_fp16",
         args={"M": 8192, "N": 8192},
     )
 
@@ -178,7 +178,7 @@ def estimate_optimal_conf() -> int:
         return mean_ms
 
     benchmark.run(
-        print_data=True, show_plots=True, save_path="./per-k-autotuned_matmul_perf"
+        print_data=True, show_plots=True, save_path="./k-autotuned_matmul_perf"
     )
     return len(configs)
 

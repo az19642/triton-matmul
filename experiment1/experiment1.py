@@ -6,6 +6,8 @@ import torch
 import triton
 import triton.language as tl
 
+MAX_BLOCK_SIZE_PROD = 2**23
+
 
 @triton.jit
 def base_kernel(
@@ -107,6 +109,8 @@ def run_benchmarks(block_size_lst, gsm_lst, num_stages_lst, num_warps_lst) -> No
             for bsk in block_size_lst:
                 for ns in num_stages_lst:
                     for nw in num_warps_lst:
+                        if bsm * bsn * bsk * (ns - 1) > MAX_BLOCK_SIZE_PROD:
+                            continue
                         configs.append(
                             triton.Config(
                                 {
@@ -126,13 +130,13 @@ def run_benchmarks(block_size_lst, gsm_lst, num_stages_lst, num_warps_lst) -> No
     benches = [
         triton.testing.Benchmark(
             x_names=["K"],
-            x_vals=[i for i in range(1024, 8193, 1024)],
+            x_vals=[i for i in range(256, 8193, 256)],
             line_arg="provider",
             line_vals=["triton", "cublas", "cutlass"],
             line_names=["Triton", "cuBLAS", "cuTLASS"],
             styles=[("red", "-"), ("green", "-"), ("blue", "-")],
             ylabel="Time (ms)",
-            plot_name=f"gsm{gsm}_per-k-triton-autotuned_matmul_row-major_fp16",
+            plot_name=f"gsm{gsm}_k-autotuned_matmul_row-major_fp16",
             args={
                 "M": 8192,
                 "N": 8192,
@@ -158,7 +162,6 @@ def run_benchmarks(block_size_lst, gsm_lst, num_stages_lst, num_warps_lst) -> No
         elif provider == "cublas":
             mean_ms = triton.testing.do_bench(lambda: torch.matmul(a, b))
         elif provider == "cutlass":
-            print("triton")
             mean_ms = triton.testing.do_bench(lambda: plan.run(a, b, c, d))
         else:
             raise ValueError(f"Invalid provider: {provider}")
@@ -168,20 +171,17 @@ def run_benchmarks(block_size_lst, gsm_lst, num_stages_lst, num_warps_lst) -> No
     benchmark.run(
         print_data=True,
         show_plots=True,
-        save_path="./per-k-gsm-triton-autotuned_matmul_perf",
+        save_path="./gsm-k-autotuned_matmul_perf",
     )
 
 
 def main():
     os.environ["TRITON_PRINT_AUTOTUNING"] = "1"
-    os.environ["MLIR_ENABLE_DUMP"] = "1"
-    os.environ["TRITON_ALWAYS_COMPILE"] = "1"
-    os.environ["LLVM_IR_ENABLE_DUMP"] = "1"
 
     # Lists of values for each parameter to grid tune over
     block_size_lst = [16, 32, 64, 128, 256, 512, 1024]
-    num_stages_lst = [2, 3, 4]
-    num_warps_lst = [8, 16, 32, 64]
+    num_stages_lst = [1, 2, 3]
+    num_warps_lst = [8, 16, 32]
     gsm_list = [1, 4, 8, 12, 14, 16]
 
     stdout = sys.stdout
