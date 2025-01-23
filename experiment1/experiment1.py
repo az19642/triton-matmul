@@ -5,7 +5,6 @@ import cutlass
 import torch
 import triton
 import triton.language as tl
-import subprocess
 
 MAX_BLOCK_SIZE_PROD = 2**23
 

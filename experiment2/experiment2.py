@@ -7,13 +7,14 @@ import torch
 import triton
 import triton.language as tl
 
-MAX_BLOCK_SIZE_PROD = 2 ** 23
+MAX_BLOCK_SIZE_PROD = 2**23
 block_size_lst = [16, 32, 64, 128, 256, 512, 1024]
 ns_lst = [1, 2, 3]
 nw_lst = [8, 16, 32]
-gsm_lst = [1, 4, 8, 12, 14, 16]
+gsm_lst = [1, 2, 4, 8, 12, 16]
 
 sys.stdout.reconfigure(line_buffering=True, write_through=True)
+
 
 @triton.jit
 def base_kernel(
@@ -151,7 +152,7 @@ def estimate_optimal_conf(block_size_lst, ns_lst, nw_lst, gsm_lst) -> int:
 
     bench = triton.testing.Benchmark(
         x_names=["K"],
-        x_vals=[i for i in range(256, 8193, 256)],  # note that len(x_vals) = 16
+        x_vals=[i for i in range(512, 8193, 512)],
         line_arg="provider",
         line_vals=["triton", "cublas", "cutlass"],
         line_names=["Triton", "cuBLAS", "cuTLASS"],
@@ -263,7 +264,7 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
     benches = [
         triton.testing.Benchmark(
             x_names=["K"],
-            x_vals=[i for i in range(256, 8193, 256)],
+            x_vals=[i for i in range(512, 8193, 512)],
             line_arg="provider",
             line_vals=["triton", "cublas", "cutlass"],
             line_names=["Triton", "cuBLAS", "cuTLASS"],
@@ -304,7 +305,7 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
             mean_ms = triton.testing.do_bench(lambda: plan.run(a, b, c, d))
 
         return mean_ms
-    
+
     benchmark.run(print_data=True, show_plots=True, save_path="./autotuned_matmul_perf")
 
 
@@ -324,7 +325,7 @@ def main():
     # os.environ["TRITON_ALWAYS_COMPILE"] = "1"
     # os.environ["LLVM_IR_ENABLE_DUMP"] = "1"
     plot_near_optimal(optimal_config, optimal_gsm)
-    
+
 
 if __name__ == "__main__":
     main()
