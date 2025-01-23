@@ -6,6 +6,7 @@ import cutlass
 import torch
 import triton
 import triton.language as tl
+from torch_cublas_matmul_int8 import matmul_int8
 
 MAX_BLOCK_SIZE_PROD = 2 ** 23
 TORCH_HAS_INT8 = hasattr(torch, "int8")
@@ -288,24 +289,30 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
 
     @triton.testing.perf_report(benches)
     def benchmark(M, N, K, GSM, provider, int8_inputs):
-        a = torch.randn((M, K), device="cuda", dtype=torch.float16)
-        b = torch.randn((K, N), device="cuda", dtype=torch.float16)
-
-        plan = cutlass.op.Gemm(
-            element=torch.float16, layout=cutlass.LayoutType.RowMajor
-        )
-        # c stores the output of matmul(a, b) and d is a dummy tensor
-        c = torch.ones((M, N), device="cuda", dtype=torch.float16)
-        d = torch.ones((M, N), device="cuda", dtype=torch.float16)
         if int8_inputs:
-            a = a.to(torch.int8)
-            b = b.to(torch.int8)
+            a = torch.randint(-128, 127, (M, K), device="cuda", dtype=torch.int8)
+            b = torch.randint(-128, 127, (K, N), device="cuda", dtype=torch.int8)
+            c = torch.empty((M, N), device="cuda", dtype=torch.int32)
+            d = torch.empty((M, N), device="cuda", dtype=torch.int32)
             plan = cutlass.op.Gemm(
-                element=torch.int8, layout=cutlass.LayoutType.RowMajor
+                element=torch.int8, 
+                layout=cutlass.LayoutType.RowMajor, 
+                accumulator_type=cutlass.type.int32
+            )
+        else:
+            a = torch.randn((M, K), device="cuda", dtype=torch.float16)
+            b = torch.randn((K, N), device="cuda", dtype=torch.float16)
+            c = torch.empty((M, N), device="cuda", dtype=torch.float16)
+            d = torch.empty((M, N), device="cuda", dtype=torch.float16)
+            plan = cutlass.op.Gemm(
+                element=torch.float16, layout=cutlass.LayoutType.RowMajor
             )
 
         if provider == "cublas":
-            mean_ms = triton.testing.do_bench(lambda: torch.matmul(a, b))
+            if int8_inputs:
+                mean_ms = triton.testing.do_bench(lambda: matmul_int8(a, b))
+            else:
+                mean_ms = triton.testing.do_bench(lambda: torch.matmul(a, b))
         elif provider == "triton":
             mean_ms = triton.testing.do_bench(
                 lambda: matmul(a, b, optimal_kernel, {"GROUP_SIZE_M": GSM})
@@ -319,6 +326,10 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
 
 
 def main():
+    os.environ["MLIR_ENABLE_DUMP"] = "1"
+    os.environ["TRITON_ALWAYS_COMPILE"] = "1"
+    os.environ["LLVM_IR_ENABLE_DUMP"] = "1"
+    os.environ["MLIR_DUMP_PATH"] = "dump.out"
     stdout = sys.stdout
     try:
         with open("autotuning_output.txt", "w") as sys.stdout:
@@ -330,9 +341,6 @@ def main():
     optimal_config, optimal_gsm = get_most_freq_config(
         "autotuning_output.txt", num_configs
     )
-    os.environ["MLIR_ENABLE_DUMP"] = "1"
-    os.environ["TRITON_ALWAYS_COMPILE"] = "1"
-    os.environ["LLVM_IR_ENABLE_DUMP"] = "1"
     plot_near_optimal(optimal_config, optimal_gsm)
 
 
