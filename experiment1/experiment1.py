@@ -8,8 +8,6 @@ import triton.language as tl
 
 MAX_BLOCK_SIZE_PROD = 2**23
 
-
-@triton.jit
 def base_kernel(
     a_ptr,
     b_ptr,
@@ -71,15 +69,13 @@ def matmul(a, b, kernel, GROUP_SIZE_M):
     This is identical to the tutorial implementation, except that we allow for the option of passing in kernel
     parameters directly for later plotting (passing in GROUP_SIZE_M) purposes.
     """
-    assert a.shape[1] == b.shape[0], "Incompatible dimensions"
-    assert a.is_contiguous(), "Matrix A must be contiguous"
-
     M, K = a.shape
     K, N = b.shape
+
     c = torch.empty((M, N), device=a.device, dtype=torch.float16)
-    grid = lambda META: (
-        triton.cdiv(M, META["BLOCK_SIZE_M"]) * triton.cdiv(N, META["BLOCK_SIZE_N"]),
-    )
+
+    grid = lambda META: (triton.cdiv(M, META["BLOCK_SIZE_M"]) * triton.cdiv(N, META["BLOCK_SIZE_N"]),)
+
     kernel[grid](
         a,
         b,
@@ -99,70 +95,27 @@ def matmul(a, b, kernel, GROUP_SIZE_M):
     return c
 
 
-def run_benchmarks(block_size_lst, gsm_lst, num_stages_lst, num_warps_lst) -> None:
+def run_benchmarks(configs, benches):
     """
     Plot the performance of the matmul kernel autotuned at every different (GROUP_SIZE_M, K).
     """
-    configs = []
-    for bsm in block_size_lst:
-        for bsn in block_size_lst:
-            for bsk in block_size_lst:
-                for ns in num_stages_lst:
-                    for nw in num_warps_lst:
-                        if bsm * bsn * bsk * (ns - 1) > MAX_BLOCK_SIZE_PROD:
-                            continue
-                        configs.append(
-                            triton.Config(
-                                {
-                                    "BLOCK_SIZE_M": bsm,
-                                    "BLOCK_SIZE_N": bsn,
-                                    "BLOCK_SIZE_K": bsk,
-                                },
-                                num_stages=ns,
-                                num_warps=nw,
-                            )
-                        )
-
-    tunable_kernel = triton.autotune(configs=configs, key=["K", "GROUP_SIZE_M"])(
-        base_kernel
-    )
-
-    benches = [
-        triton.testing.Benchmark(
-            x_names=["K"],
-            x_vals=[i for i in range(512, 8193, 512)],
-            line_arg="provider",
-            line_vals=["triton", "cublas", "cutlass"],
-            line_names=["Triton", "cuBLAS", "cuTLASS"],
-            styles=[("red", "-"), ("green", "-"), ("blue", "-")],
-            ylabel="Time (ms)",
-            plot_name=f"gsm{gsm}_k-autotuned_matmul_row-major_fp16",
-            args={
-                "M": 8192,
-                "N": 8192,
-                "gsm": gsm,
-            },
-        )
-        for gsm in gsm_lst
-    ]
+    tunable_kernel = triton.autotune(configs=configs, key=["K", "GROUP_SIZE_M"])(triton.jit()(base_kernel))
 
     @triton.testing.perf_report(benches)
-    def benchmark(M, N, K, gsm, provider):
+    def benchmark(M, N, K, GSM, provider):
         a = torch.randn((M, K), device="cuda", dtype=torch.float16)
         b = torch.randn((K, N), device="cuda", dtype=torch.float16)
 
-        plan = cutlass.op.Gemm(
-            element=torch.float16, layout=cutlass.LayoutType.RowMajor
-        )
-        c = torch.empty((M, N), device="cuda", dtype=torch.float16)
-        d = torch.empty((M, N), device="cuda", dtype=torch.float16)
-
         if provider == "triton":
-            print(f"gsm{gsm}_k{K}")
-            mean_ms = triton.testing.do_bench(lambda: matmul(a, b, tunable_kernel, gsm))
+            print(f"gsm{GSM}_k{K}")
+            sys.stdout.flush()
+            mean_ms = triton.testing.do_bench(lambda: matmul(a, b, tunable_kernel, GSM))
         elif provider == "cublas":
             mean_ms = triton.testing.do_bench(lambda: torch.matmul(a, b))
         elif provider == "cutlass":
+            plan = cutlass.op.Gemm(element=torch.float16, layout=cutlass.LayoutType.RowMajor)
+            c = torch.empty((M, N), device="cuda", dtype=torch.float16)
+            d = torch.empty((M, N), device="cuda", dtype=torch.float16)
             mean_ms = triton.testing.do_bench(lambda: plan.run(a, b, c, d))
         else:
             raise ValueError(f"Invalid provider: {provider}")
@@ -172,21 +125,74 @@ def run_benchmarks(block_size_lst, gsm_lst, num_stages_lst, num_warps_lst) -> No
     benchmark.run(
         print_data=False,
         show_plots=False,
-        save_path="./gsm-k-autotuned_matmul_perf",
+        save_path=os.path.join(output_dir, os.path.basename("gsm-k-autotuned_matmul_perf")),
     )
+
+
+def get_benches(gsm_lst):
+    """
+    Return a list of benches to benchmark and plot using Triton's testing.perf_report function.
+    """
+    return [
+        triton.testing.Benchmark(
+            x_names=["K"],
+            x_vals=[i for i in range(512, 8193, 512)],
+            line_arg="provider",
+            line_vals=["triton", "cublas", "cutlass"],
+            line_names=["Triton", "cuBLAS", "cuTLASS"],
+            styles=[("red", "-"), ("green", "-"), ("blue", "-")],
+            ylabel="Time (ms)",
+            plot_name=f"gsm{GSM}_k-autotuned_matmul_row-major_fp16",
+            args={"M": 8192, "N": 8192, "GSM": GSM},
+        )
+        for GSM in gsm_lst
+    ]
+
+
+def get_configs(block_size_lst, num_stages_lst, num_warps_lst):
+    """
+    Return a list of configurations to autotune over using Triton's autotune function.
+    """
+    return [
+        triton.Config(
+            {
+                "BLOCK_SIZE_M": BSM,
+                "BLOCK_SIZE_N": BSN,
+                "BLOCK_SIZE_K": BSK,
+            },
+            num_stages=ns,
+            num_warps=nw,
+        )
+        for BSM in block_size_lst
+        for BSN in block_size_lst
+        for BSK in block_size_lst
+        for ns in num_stages_lst
+        for nw in num_warps_lst
+        if BSM * BSN * BSK * (ns - 1) <= MAX_BLOCK_SIZE_PROD
+    ]
 
 
 def main():
     os.environ["TRITON_PRINT_AUTOTUNING"] = "1"
+    global output_dir
+    output_dir = os.environ.get("SLURM_TMPDIR")
+    if not output_dir:
+        output_dir = "./"
 
     # Lists of values for each parameter to grid tune over
     block_size_lst = [32, 64, 128, 256, 512, 1024]
     num_stages_lst = [2, 3]
     num_warps_lst = [8, 16, 32]
     gsm_list = [1, 2, 4, 8, 12, 16]
-    with open("autotuning.out", "w") as sys.stdout:
+
+    benches = get_benches(gsm_list)
+    assert benches, "No benches to run"
+    configs = get_configs(block_size_lst, num_stages_lst, num_warps_lst)
+    assert configs, "No configurations to autotune over"
+
+    with open(os.path.join(output_dir, os.path.basename("autotuning.out")), "w") as sys.stdout:
         sys.stdout.reconfigure(line_buffering=True, write_through=True)
-        run_benchmarks(block_size_lst, gsm_list, num_stages_lst, num_warps_lst)
+        run_benchmarks(configs, benches)
 
 
 if __name__ == "__main__":
