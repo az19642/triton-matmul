@@ -7,6 +7,13 @@ import torch
 import triton
 import triton.language as tl
 
+MAX_BLOCK_SIZE_PROD = 2 ** 23
+block_size_lst = [16, 32, 64, 128, 256, 512, 1024]
+ns_lst = [1, 2, 3]
+nw_lst = [8, 16, 32]
+gsm_lst = [1, 4, 8, 12, 14, 16]
+
+sys.stdout.reconfigure(line_buffering=True, write_through=True)
 
 @triton.jit
 def base_kernel(
@@ -107,7 +114,7 @@ def matmul(a, b, kernel, kernel_params: dict):
     return c
 
 
-def estimate_optimal_conf() -> int:
+def estimate_optimal_conf(block_size_lst, ns_lst, nw_lst, gsm_lst) -> int:
     """
     Estimate the optimal configuration for matmul by autotuning with a subset of the K values (0, 8193).
 
@@ -118,16 +125,14 @@ def estimate_optimal_conf() -> int:
     :return: the number of configurations used in the autotuning process
     """
     configs = []
-    block_size_lst = [32, 64, 128, 256, 512]
-    gsm_lst = [1, 2, 4, 8, 10, 12, 14]
-    ns_lst = [1, 2, 3, 4]
-    nw_lst = [4, 8, 16, 32
     for bsm in block_size_lst:
         for bsn in block_size_lst:
             for bsk in block_size_lst:
                 for gsm in gsm_lst:
                     for ns in ns_lst:
                         for nw in nw_lst:
+                            if bsm * bsn * bsk * (ns - 1) > MAX_BLOCK_SIZE_PROD:
+                                continue
                             configs.append(
                                 triton.Config(
                                     {
@@ -178,7 +183,7 @@ def estimate_optimal_conf() -> int:
         return mean_ms
 
     benchmark.run(
-        print_data=True, show_plots=True, save_path="./per-k-autotuned_matmul_perf"
+        print_data=False, show_plots=False, save_path="./k-autotuned_matmul_perf"
     )
     return len(configs)
 
@@ -304,17 +309,20 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
 
 
 def main():
-    os.environ["MLIR_ENABLE_DUMP"] = "1"
-    os.environ["TRITON_ALWAYS_COMPILE"] = "1"
-    os.environ["LLVM_IR_ENABLE_DUMP"] = "1"
-    os.environ["TRITON_PRINT_AUTOTUNING"] = "1"
-    with open("autotuning.out", "w") as sys.stdout:
-        sys.stdout.reconfigure(line_buffering=True, write_through=True)
-        num_configs = estimate_optimal_conf()
+    stdout = sys.stdout
+    try:
+        with open("autotuning_output.txt", "w") as sys.stdout:
+            os.environ["TRITON_PRINT_AUTOTUNING"] = "1"
+            num_configs = estimate_optimal_conf(block_size_lst, ns_lst, nw_lst, gsm_lst)
+    finally:
+        sys.stdout = stdout
 
     optimal_config, optimal_gsm = get_most_freq_config(
         "autotuning_output.txt", num_configs
     )
+    # os.environ["MLIR_ENABLE_DUMP"] = "1"
+    # os.environ["TRITON_ALWAYS_COMPILE"] = "1"
+    # os.environ["LLVM_IR_ENABLE_DUMP"] = "1"
     plot_near_optimal(optimal_config, optimal_gsm)
     
 
