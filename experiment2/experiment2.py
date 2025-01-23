@@ -106,7 +106,7 @@ def matmul(a, b, kernel, kernel_params: dict):
     return c
 
 
-def estimate_optimal_conf(configs) -> int:
+def get_optimal_config(configs) -> int:
     """
     Estimate the optimal configuration for matmul by autotuning with a subset of the K values (0, 8193).
 
@@ -270,7 +270,9 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm: int) -> None:
 
         return mean_ms
 
-    benchmark.run(print_data=True, show_plots=True, save_path="./autotuned_matmul_perf")
+    benchmark.run(
+        print_data=True, show_plots=True, save_path=os.path.join(output_dir, os.path.basename("optimal_matmul_perf"))
+    )
 
 
 def get_configs(block_size_lst, gsm_lst, num_stages_lst, num_warps_lst):
@@ -312,7 +314,7 @@ def main():
     with open(autotuning_path, "w") as sys.stdout:
         os.environ["TRITON_PRINT_AUTOTUNING"] = "1"
         sys.stdout.reconfigure(line_buffering=True, write_through=True)
-        num_configs = estimate_optimal_conf(configs)
+        num_configs = get_optimal_config(configs)
     sys.stdout = stdout
 
     os.environ["TRITON_PRINT_AUTOTUNING"] = "0"

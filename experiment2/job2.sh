@@ -20,4 +20,5 @@ pip install --no-index -r $SCRATCH/triton-matmul/requirements.txt
 python experiment2.py
 
 cp $SLURM_TMPDIR/autotuning.out ./
-cp -r $SLURM_TMPDIR/gsm-k-autotuned_matmul_perf ./
+cp -r $SLURM_TMPDIR/optimal_matmul_perf ./
+cp -r $SLURM_TMPDIR/k-autotuned_matmul_perf ./
