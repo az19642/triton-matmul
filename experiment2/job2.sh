@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=3200M
+#SBATCH --mem=32000M
 #SBATCH --time=00-12:00:00
 #SBATCH --account=rrg-mmehride
 
