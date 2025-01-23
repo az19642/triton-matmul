@@ -8,7 +8,7 @@ import triton
 import triton.language as tl
 
 MAX_BLOCK_SIZE_PROD = 2 ** 23
-TORCH_HAS_INT8 = hasattr(torch, "qint8")
+TORCH_HAS_INT8 = hasattr(torch, "int8")
 block_size_lst = [16, 32, 64, 128, 256, 512, 1024]
 ns_lst = [1, 2, 3]
 nw_lst = [8, 16, 32]
@@ -298,10 +298,10 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
         c = torch.ones((M, N), device="cuda", dtype=torch.float16)
         d = torch.ones((M, N), device="cuda", dtype=torch.float16)
         if int8_inputs:
-            a = a.to(torch.qint8)
-            b = b.to(torch.qint8)
+            a = a.to(torch.int8)
+            b = b.to(torch.int8)
             plan = cutlass.op.Gemm(
-                element=torch.qint8, layout=cutlass.LayoutType.RowMajor
+                element=torch.int8, layout=cutlass.LayoutType.RowMajor
             )
 
         if provider == "cublas":
@@ -330,9 +330,9 @@ def main():
     optimal_config, optimal_gsm = get_most_freq_config(
         "autotuning_output.txt", num_configs
     )
-    # os.environ["MLIR_ENABLE_DUMP"] = "1"
-    # os.environ["TRITON_ALWAYS_COMPILE"] = "1"
-    # os.environ["LLVM_IR_ENABLE_DUMP"] = "1"
+    os.environ["MLIR_ENABLE_DUMP"] = "1"
+    os.environ["TRITON_ALWAYS_COMPILE"] = "1"
+    os.environ["LLVM_IR_ENABLE_DUMP"] = "1"
     plot_near_optimal(optimal_config, optimal_gsm)
 
 
