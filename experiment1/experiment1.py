@@ -5,6 +5,7 @@ import cutlass
 import torch
 import triton
 import triton.language as tl
+import subprocess
 
 MAX_BLOCK_SIZE_PROD = 2**23
 
@@ -130,7 +131,7 @@ def run_benchmarks(block_size_lst, gsm_lst, num_stages_lst, num_warps_lst) -> No
     benches = [
         triton.testing.Benchmark(
             x_names=["K"],
-            x_vals=[i for i in range(256, 8193, 256)],
+            x_vals=[i for i in range(512, 8193, 512)],
             line_arg="provider",
             line_vals=["triton", "cublas", "cutlass"],
             line_names=["Triton", "cuBLAS", "cuTLASS"],
@@ -158,6 +159,7 @@ def run_benchmarks(block_size_lst, gsm_lst, num_stages_lst, num_warps_lst) -> No
         d = torch.empty((M, N), device="cuda", dtype=torch.float16)
 
         if provider == "triton":
+            print(f"gsm{gsm}_k{K}")
             mean_ms = triton.testing.do_bench(lambda: matmul(a, b, tunable_kernel, gsm))
         elif provider == "cublas":
             mean_ms = triton.testing.do_bench(lambda: torch.matmul(a, b))
@@ -169,8 +171,8 @@ def run_benchmarks(block_size_lst, gsm_lst, num_stages_lst, num_warps_lst) -> No
         return mean_ms
 
     benchmark.run(
-        print_data=True,
-        show_plots=True,
+        print_data=False,
+        show_plots=False,
         save_path="./gsm-k-autotuned_matmul_perf",
     )
 
@@ -179,17 +181,13 @@ def main():
     os.environ["TRITON_PRINT_AUTOTUNING"] = "1"
 
     # Lists of values for each parameter to grid tune over
-    block_size_lst = [16, 32, 64, 128, 256, 512, 1024]
-    num_stages_lst = [1, 2, 3]
+    block_size_lst = [32, 64, 128, 256, 512, 1024]
+    num_stages_lst = [2, 3]
     num_warps_lst = [8, 16, 32]
-    gsm_list = [1, 4, 8, 12, 14, 16]
-
-    stdout = sys.stdout
-    try:
-        with open("autotuning_output.txt", "w") as sys.stdout:
-            run_benchmarks(block_size_lst, gsm_list, num_stages_lst, num_warps_lst)
-    finally:
-        sys.stdout = stdout  # reset stdout
+    gsm_list = [1, 2, 4, 8, 12, 16]
+    with open("autotuning.out", "w") as sys.stdout:
+        sys.stdout.reconfigure(line_buffering=True, write_through=True)
+        run_benchmarks(block_size_lst, gsm_list, num_stages_lst, num_warps_lst)
 
 
 if __name__ == "__main__":

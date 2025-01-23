@@ -119,9 +119,9 @@ def estimate_optimal_conf() -> int:
     """
     configs = []
     block_size_lst = [32, 64, 128, 256, 512]
-    gsm_lst = [1, 2, 4, 8, 10, 12, 14]  # GROUP_SIZE_M
-    ns_lst = [1, 2, 3, 4]  # num_stages
-    nw_lst = [4, 8, 16, 32]  # num_warps
+    gsm_lst = [1, 2, 4, 8, 10, 12, 14]
+    ns_lst = [1, 2, 3, 4]
+    nw_lst = [4, 8, 16, 32
     for bsm in block_size_lst:
         for bsn in block_size_lst:
             for bsk in block_size_lst:
@@ -152,7 +152,7 @@ def estimate_optimal_conf() -> int:
         line_names=["Triton", "cuBLAS", "cuTLASS"],
         styles=[("red", "-"), ("blue", "-"), ("green", "-")],
         ylabel="Mean runtime (ms)",
-        plot_name=f"k-autotuned_matmul_row-major_fp16",
+        plot_name=f"per-k-autotuned_matmul_row-major_fp16",
         args={"M": 8192, "N": 8192},
     )
 
@@ -178,7 +178,7 @@ def estimate_optimal_conf() -> int:
         return mean_ms
 
     benchmark.run(
-        print_data=True, show_plots=True, save_path="./k-autotuned_matmul_perf"
+        print_data=True, show_plots=True, save_path="./per-k-autotuned_matmul_perf"
     )
     return len(configs)
 
@@ -299,27 +299,24 @@ def plot_near_optimal(optimal_conf: triton.Config, optimal_gsm) -> None:
             mean_ms = triton.testing.do_bench(lambda: plan.run(a, b, c, d))
 
         return mean_ms
-
+    
     benchmark.run(print_data=True, show_plots=True, save_path="./autotuned_matmul_perf")
 
 
 def main():
-    stdout = sys.stdout
-    try:
-        with open("autotuning_output.txt", "w") as sys.stdout:
-            os.environ["TRITON_PRINT_AUTOTUNING"] = "1"
-            num_configs = estimate_optimal_conf()
-    finally:
-        sys.stdout = stdout
+    os.environ["MLIR_ENABLE_DUMP"] = "1"
+    os.environ["TRITON_ALWAYS_COMPILE"] = "1"
+    os.environ["LLVM_IR_ENABLE_DUMP"] = "1"
+    os.environ["TRITON_PRINT_AUTOTUNING"] = "1"
+    with open("autotuning.out", "w") as sys.stdout:
+        sys.stdout.reconfigure(line_buffering=True, write_through=True)
+        num_configs = estimate_optimal_conf()
 
     optimal_config, optimal_gsm = get_most_freq_config(
         "autotuning_output.txt", num_configs
     )
-    os.environ["MLIR_ENABLE_DUMP"] = "1"
-    os.environ["TRITON_ALWAYS_COMPILE"] = "1"
-    os.environ["LLVM_IR_ENABLE_DUMP"] = "1"
     plot_near_optimal(optimal_config, optimal_gsm)
-
+    
 
 if __name__ == "__main__":
     main()
