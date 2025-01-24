@@ -23,7 +23,7 @@ def get_benches():
             plot_name=f"gsm{GSM}_k-autotuned_matmul_row-major_fp16",
             args={"M": 8192, "N": 8192, "GSM": GSM},
         )
-        for GSM in [1, 2, 4, 8, 12, 16, 20, 32, 48, 62]
+        for GSM in [int(sys.argv[1])]  # single GSM, for job array
     ]
     assert benches, "Benches is empty"
     return benches
@@ -44,11 +44,16 @@ def get_configs():
             num_stages=ns,
             num_warps=nw,
         )
-        for BSM in [32, 64, 128, 256]
-        for BSN in [32, 64, 128, 256]
-        for BSK in [32, 64, 128, 256]
-        for ns in [2, 3]
-        for nw in [8, 16, 32]
+        # for BSM in [32, 64, 128, 256]
+        # for BSN in [32, 64, 128, 256]
+        # for BSK in [32, 64, 128, 256]
+        # for ns in [2, 3]
+        # for nw in [8, 16, 32]
+        for BSM in [32, 64]
+        for BSN in [128]
+        for BSK in [32]
+        for ns in [2]
+        for nw in [32]
         if BSM * BSN * BSK * (ns - 1) <= MAX_BLOCK_SIZE_PROD
     ]
     assert configs, "Configs is empty"

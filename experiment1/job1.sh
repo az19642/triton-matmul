@@ -1,8 +1,9 @@
 #!/bin/bash
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=10000M
-#SBATCH --time=00-26:00:00
+#SBATCH --mem=2000M
+#SBATCH --array=2,4,8
+#SBATCH --time=00-00:15:00
 #SBATCH --account=rrg-mmehride
 
 nvidia-smi > nvidia-smi.txt
@@ -17,7 +18,9 @@ source $SLURM_TMPDIR/env/bin/activate
 pip install --no-index $SCRATCH/triton-matmul/nvidia_cutlass-3.6.0.0-py3-none-any.whl
 pip install --no-index -r $SCRATCH/triton-matmul/requirements.txt
 
-python experiment1.py
+python experiment1.py $SLURM_ARRAY_TASK_ID
 
-cp $SLURM_TMPDIR/autotuning.out ./
-cp -r $SLURM_TMPDIR/gsm-k-autotuned_matmul_perf ./
+cat $SLURM_TMPDIR/autotuning.out >> ./autotuning.out
+
+mkdir -p ./gsm-k-autotuned_matmul_perf
+cp -r $SLURM_TMPDIR/gsm-k-autotuned_matmul_perf/* ./gsm-k-autotuned_matmul_perf/
