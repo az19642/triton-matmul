@@ -1,6 +1,62 @@
-<html><body>
-<image src="gsm4_k-autotuned_matmul_row-major_fp16.png"/>
-<image src="gsm8_k-autotuned_matmul_row-major_fp16.png"/>
-<image src="gsm32_k-autotuned_matmul_row-major_fp16.png"/>
-<image src="gsm62_k-autotuned_matmul_row-major_fp16.png"/>
-</body></html>
+<html>
+  <head>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+
+      h1 {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      div {
+        margin-bottom: 20px;
+        text-align: center;
+      }
+
+      h2 {
+        margin-bottom: 10px;
+      }
+
+      img {
+        max-width: 80%;
+        height: auto;
+        border: 1px solid #ccc;
+        box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Performance of Autotuned Matmul Kernels</h1>
+
+    <div>
+      <h2>GSM 4</h2>
+      <img
+        src="gsm4_k-autotuned_matmul_row-major_fp16.png"
+      />
+    </div>
+
+    <div>
+      <h2>GSM 8</h2>
+      <img
+        src="gsm8_k-autotuned_matmul_row-major_fp16.png"
+      />
+    </div>
+
+    <div>
+      <h2>GSM 32</h2>
+      <img
+        src="gsm32_k-autotuned_matmul_row-major_fp16.png"
+      />
+    </div>
+
+    <div>
+      <h2>GSM 62</h2>
+      <img
+        src="gsm62_k-autotuned_matmul_row-major_fp16.png"
+      />
+    </div>
+  </body>
+</html>
