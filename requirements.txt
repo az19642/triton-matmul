@@ -2,10 +2,3 @@ torch
 triton
 pandas
 matplotlib
-nvidia-cutlass
-cuda-python
-networkx
-numpy
-pydot
-scipy
-treelib
