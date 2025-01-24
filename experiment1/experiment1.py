@@ -33,6 +33,7 @@ def get_configs():
     """
     Return a list of configurations to autotune over (GROUP_SIZE_M, K).
     """
+    # upper bound (due to VRAM) found through experimentation
     MAX_BLOCK_SIZE_PROD = 2**23
     configs = [
         triton.Config(
@@ -44,11 +45,11 @@ def get_configs():
             num_stages=ns,
             num_warps=nw,
         )
-        for BSM in [32, 64, 128, 256]
-        for BSN in [32, 64, 128, 256]
-        for BSK in [32, 64, 128, 256]
-        for ns in [2, 3]
-        for nw in [8, 16, 32]
+        for BSM in [32, 64, 128, 256, 512]
+        for BSN in [32, 64, 128, 256, 512]
+        for BSK in [32, 64, 128, 256, 512]
+        for ns in [2, 3, 4]
+        for nw in [2, 4, 8, 16, 32]
         if BSM * BSN * BSK * (ns - 1) <= MAX_BLOCK_SIZE_PROD
     ]
     assert configs, "Configs is empty"
