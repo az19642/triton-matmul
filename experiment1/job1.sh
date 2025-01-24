@@ -2,7 +2,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=3000M
-#SBATCH --array=2,4,8
+#SBATCH --array=1,2,4,8,12,16,32,64,128,256
 #SBATCH --time=00-03:00:00
 #SBATCH --account=rrg-mmehride
 
