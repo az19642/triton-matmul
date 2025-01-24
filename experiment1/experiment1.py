@@ -9,7 +9,7 @@ import triton.language as tl
 
 def get_benches():
     """
-    Return a list of benches to benchmark and plot using Triton's testing.perf_report function.
+    Return benches to benchmark and plot using Triton's testing.perf_report function.
     """
     benches = [
         triton.testing.Benchmark(
@@ -31,7 +31,7 @@ def get_benches():
 
 def get_configs():
     """
-    Return a list of configurations to autotune over using Triton's autotune function.
+    Return a list of configurations to autotune over (GROUP_SIZE_M, K).
     """
     MAX_BLOCK_SIZE_PROD = 2**23
     configs = [
