@@ -303,10 +303,10 @@ def main():
     autotuning_path = os.path.join(output_dir, os.path.basename("autotuning.out"))
 
     # Lists of values for each parameter to grid tune over for intial config search
-    block_size_lst = [32, 64, 128, 256, 512, 1024]
+    block_size_lst = [32, 64, 128, 256]
     num_stages_lst = [2, 3]
     num_warps_lst = [8, 16, 32]
-    gsm_lst = [1, 2, 4, 8, 12, 16]
+    gsm_lst =  [1, 2, 4, 8, 12, 16, 20, 32, 48, 62]
     configs = get_configs(block_size_lst, gsm_lst, num_stages_lst, num_warps_lst)
     assert configs, "No configurations to autotune over"
 
