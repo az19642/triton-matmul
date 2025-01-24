@@ -309,7 +309,7 @@ def main():
     # os.environ["MLIR_ENABLE_DUMP"] = "1"
     # os.environ["LLVM_IR_ENABLE_DUMP"] = "1"
     # os.environ["MLIR_DUMP_PATH"] = "dump.out"
-    optimal_config = get_majority_config(autotuning_path)
+    optimal_config, _ = get_majority_config(autotuning_path)
     plot_near_optimal(optimal_config)
 
 
