@@ -2,7 +2,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=10000M
-#SBATCH --time=00-00:26:00
+#SBATCH --time=00-26:00:00
 #SBATCH --account=rrg-mmehride
 
 nvidia-smi > nvidia-smi.txt
