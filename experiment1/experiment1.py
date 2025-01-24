@@ -6,10 +6,58 @@ import torch
 import triton
 import triton.language as tl
 
-MAX_BLOCK_SIZE_PROD = 2**23
+
+def get_benches():
+    """
+    Return a list of benches to benchmark and plot using Triton's testing.perf_report function.
+    """
+    benches = [
+        triton.testing.Benchmark(
+            x_names=["K"],
+            x_vals=[i for i in range(1024, 8193, 1024)],
+            line_arg="provider",
+            line_vals=["triton", "cublas", "cutlass"],
+            line_names=["Triton", "cuBLAS", "cuTLASS"],
+            styles=[("red", "-"), ("green", "-"), ("blue", "-")],
+            ylabel="Time (ms)",
+            plot_name=f"gsm{GSM}_k-autotuned_matmul_row-major_fp16",
+            args={"M": 8192, "N": 8192, "GSM": GSM},
+        )
+        for GSM in [1, 2, 4, 8, 12, 16, 20, 32, 48, 62]
+    ]
+    assert benches, "Benches is empty"
+    return benches
 
 
-def base_kernel(
+def get_configs():
+    """
+    Return a list of configurations to autotune over using Triton's autotune function.
+    """
+    MAX_BLOCK_SIZE_PROD = 2**23
+    configs = [
+        triton.Config(
+            {
+                "BLOCK_SIZE_M": BSM,
+                "BLOCK_SIZE_N": BSN,
+                "BLOCK_SIZE_K": BSK,
+            },
+            num_stages=ns,
+            num_warps=nw,
+        )
+        for BSM in [32, 64, 128, 256]
+        for BSN in [32, 64, 128, 256]
+        for BSK in [32, 64, 128, 256]
+        for ns in [2, 3]
+        for nw in [8, 16, 32]
+        if BSM * BSN * BSK * (ns - 1) <= MAX_BLOCK_SIZE_PROD
+    ]
+    assert configs, "Configs is empty"
+    return configs
+
+
+@triton.autotune(configs=get_configs(), key=["K", "GROUP_SIZE_M"])
+@triton.jit
+def matmul_kernel(
     a_ptr,
     b_ptr,
     c_ptr,
@@ -63,7 +111,7 @@ def base_kernel(
     tl.store(c_ptrs, c, mask=c_mask)
 
 
-def matmul(a, b, kernel, GROUP_SIZE_M):
+def matmul(a, b, GROUP_SIZE_M):
     """
     Perform matrix multiplication using the provided matmul kernel.
 
@@ -77,7 +125,7 @@ def matmul(a, b, kernel, GROUP_SIZE_M):
 
     grid = lambda META: (triton.cdiv(M, META["BLOCK_SIZE_M"]) * triton.cdiv(N, META["BLOCK_SIZE_N"]),)
 
-    kernel[grid](
+    matmul_kernel[grid](
         a,
         b,
         c,
@@ -96,20 +144,19 @@ def matmul(a, b, kernel, GROUP_SIZE_M):
     return c
 
 
-def run_benchmarks(configs, benches):
+def run_benchmarks():
     """
     Plot the performance of the matmul kernel autotuned at every different (GROUP_SIZE_M, K).
     """
-    tunable_kernel = triton.autotune(configs=configs, key=["K", "GROUP_SIZE_M"])(triton.jit()(base_kernel))
 
-    @triton.testing.perf_report(benches)
+    @triton.testing.perf_report(get_benches())
     def benchmark(M, N, K, GSM, provider):
         a = torch.randn((M, K), device="cuda", dtype=torch.float16)
         b = torch.randn((K, N), device="cuda", dtype=torch.float16)
 
         if provider == "triton":
             print(f"gsm{GSM}_k{K}")
-            mean_ms = triton.testing.do_bench(lambda: matmul(a, b, tunable_kernel, GSM))
+            mean_ms = triton.testing.do_bench(lambda: matmul(a, b, GSM))
         elif provider == "cublas":
             mean_ms = triton.testing.do_bench(lambda: torch.matmul(a, b))
         elif provider == "cutlass":
@@ -129,70 +176,17 @@ def run_benchmarks(configs, benches):
     )
 
 
-def get_benches(gsm_lst):
-    """
-    Return a list of benches to benchmark and plot using Triton's testing.perf_report function.
-    """
-    return [
-        triton.testing.Benchmark(
-            x_names=["K"],
-            x_vals=[i for i in range(512, 8193, 512)],
-            line_arg="provider",
-            line_vals=["triton", "cublas", "cutlass"],
-            line_names=["Triton", "cuBLAS", "cuTLASS"],
-            styles=[("red", "-"), ("green", "-"), ("blue", "-")],
-            ylabel="Time (ms)",
-            plot_name=f"gsm{GSM}_k-autotuned_matmul_row-major_fp16",
-            args={"M": 8192, "N": 8192, "GSM": GSM},
-        )
-        for GSM in gsm_lst
-    ]
-
-
-def get_configs(block_size_lst, num_stages_lst, num_warps_lst):
-    """
-    Return a list of configurations to autotune over using Triton's autotune function.
-    """
-    return [
-        triton.Config(
-            {
-                "BLOCK_SIZE_M": BSM,
-                "BLOCK_SIZE_N": BSN,
-                "BLOCK_SIZE_K": BSK,
-            },
-            num_stages=ns,
-            num_warps=nw,
-        )
-        for BSM in block_size_lst
-        for BSN in block_size_lst
-        for BSK in block_size_lst
-        for ns in num_stages_lst
-        for nw in num_warps_lst
-        if BSM * BSN * BSK * (ns - 1) <= MAX_BLOCK_SIZE_PROD
-    ]
-
-
 def main():
     os.environ["TRITON_PRINT_AUTOTUNING"] = "1"
+
+    # faster I/O to $SLURM_TMPDIR
     global output_dir
     output_dir = os.environ.get("SLURM_TMPDIR")
-    if not output_dir:
-        output_dir = "./"
-
-    # Lists of values for each parameter to grid tune over
-    block_size_lst = [32, 64, 128, 256, 512, 1024]
-    num_stages_lst = [2, 3]
-    num_warps_lst = [8, 16, 32]
-    gsm_lst = [1, 2, 4, 8, 12, 16]
-
-    benches = get_benches(gsm_lst)
-    assert benches, "No benches to run"
-    configs = get_configs(block_size_lst, num_stages_lst, num_warps_lst)
-    assert configs, "No configurations to autotune over"
+    assert output_dir, "$SLURM_TMPDIR does not exist"
 
     with open(os.path.join(output_dir, os.path.basename("autotuning.out")), "w") as sys.stdout:
         sys.stdout.reconfigure(line_buffering=True, write_through=True)
-        run_benchmarks(configs, benches)
+        run_benchmarks()
 
 
 if __name__ == "__main__":
