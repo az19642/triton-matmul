@@ -7,6 +7,26 @@ import triton
 import triton.language as tl
 
 
+def get_area_bound(num_stages):
+    """
+    Return the lowest upper bound on valid products of block sizes (area) rounded to the nearest scaled, integer power of 2, based on num_stages.
+    """
+    if num_stages == 1:
+        return 2**16
+    elif num_stages == 2:
+        return 2**16
+    elif num_stages == 3:
+        return 2**15
+    elif num_stages == 4:
+        return 2**14 + 2**13  # equiv to 3 * 2**13
+    elif num_stages == 5:
+        return 2**14
+    elif num_stages == 6:
+        return 2**14
+    else:
+        raise NotImplementedError
+
+
 def get_benches():
     """
     Return benches to benchmark and plot using Triton's testing.perf_report function.
@@ -32,9 +52,11 @@ def get_benches():
 def get_configs():
     """
     Return a list of configurations to autotune over (GROUP_SIZE_M, K).
+
+    Through testing we found that at num_stages = 2,
+    the maximum product of the block sizes is MAX_BLOCK_SIZE_PROD = 2**23,
+    and each time num_stages is incremented, the bound is doubled.
     """
-    # upper bound (due to VRAM) found through experimentation
-    MAX_BLOCK_SIZE_PROD = 2**23
     configs = [
         triton.Config(
             {
@@ -45,12 +67,12 @@ def get_configs():
             num_stages=ns,
             num_warps=nw,
         )
-        for BSM in [32, 64, 128, 256, 512]
-        for BSN in [32, 64, 128, 256, 512]
-        for BSK in [32, 64, 128, 256, 512]
-        for ns in [2, 3, 4]
-        for nw in [2, 4, 8, 16, 32]
-        if BSM * BSN * BSK * (ns - 1) <= MAX_BLOCK_SIZE_PROD
+        for BSM in [32, 64, 128, 256]
+        for BSN in [32, 64, 128, 256]
+        for BSK in [32, 64, 128, 256]
+        for ns in [1, 2, 3, 4, 5]
+        if BSK * (BSM + BSN) <= get_area_bound(ns)
+        for nw in [1, 2, 4, 8, 16, 32]
     ]
     assert configs, "Configs is empty"
     return configs
