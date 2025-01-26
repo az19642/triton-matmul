@@ -7,12 +7,23 @@ import torch
 import triton
 import triton.language as tl
 
+def get_max_block_size_prod(num_stages):
+    if num_stages == 1 or num_stages == 2:
+        return 2 ** 16
+    elif num_stages == 3:
+        return 2 ** 15
+    elif num_stages == 4:
+        return 2 ** 14 + 2 ** 13
+    elif num_stages == 5 or num_stages == 6:
+        return 2 ** 14
+    else:
+        raise NotImplementedError
+
 
 def get_configs():
     """
     Return a list of configurations to autotune over K.
     """
-    MAX_BLOCK_SIZE_PROD = 2**23
     configs = [
         triton.Config(
             {
@@ -24,19 +35,13 @@ def get_configs():
             num_stages=ns,
             num_warps=nw,
         )
-        # for BSM in [32, 64, 128, 256]
-        # for BSN in [32, 64, 128, 256]
-        # for BSK in [32, 64, 128, 256]
-        # for GSM in [1, 2, 4, 8, 12, 16, 20, 32, 48, 62]
-        # for ns in [2, 3]
-        # for nw in [8, 16, 32]
-        for BSM in [32, 64]
-        for BSN in [32, 64]
-        for BSK in [32, 64]
-        for GSM in [2, 4, 8]
-        for ns in [2]
-        for nw in [32]
-        if BSM * BSN * BSK * (ns - 1) <= MAX_BLOCK_SIZE_PROD
+        for BSM in [32, 64, 128, 256, 512]
+        for BSN in [32, 64, 128, 256, 512]
+        for BSK in [32, 64, 128, 256, 512]
+        for GSM in  [1, 2, 4, 8, 12, 16, 20, 32, 48, 64]
+        for ns in [3, 4, 5]
+        if (BSK * (BSM + BSN)) <= get_max_block_size_prod(ns)
+        for nw in [4, 8, 16, 32]
     ]
     assert configs, "Configs is empty"
     global num_configs
@@ -305,10 +310,10 @@ def main():
         optimal_config = get_optimal_config()
     sys.stdout = stdout
 
-    # os.environ["TRITON_PRINT_AUTOTUNING"] = "0"
-    # os.environ["MLIR_ENABLE_DUMP"] = "1"
-    # os.environ["LLVM_IR_ENABLE_DUMP"] = "1"
-    # os.environ["MLIR_DUMP_PATH"] = "dump.out"
+    os.environ["TRITON_PRINT_AUTOTUNING"] = "0"
+    os.environ["MLIR_ENABLE_DUMP"] = "1"
+    os.environ["LLVM_IR_ENABLE_DUMP"] = "1"
+    os.environ["MLIR_DUMP_PATH"] = "dump.out"
     optimal_config, _ = get_majority_config(autotuning_path)
     plot_near_optimal(optimal_config)
 
