@@ -1,0 +1,16 @@
+gsm32_k1024
+Triton autotuning for function matmul_kernel finished after 906.59s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 128, BLOCK_SIZE_K: 32, num_warps: 4, num_ctas: 1, num_stages: 4, maxnreg: None;
+gsm32_k2048
+Triton autotuning for function matmul_kernel finished after 162.56s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 256, BLOCK_SIZE_K: 32, num_warps: 8, num_ctas: 1, num_stages: 4, maxnreg: None;
+gsm32_k3072
+Triton autotuning for function matmul_kernel finished after 185.77s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 256, BLOCK_SIZE_K: 32, num_warps: 8, num_ctas: 1, num_stages: 4, maxnreg: None;
+gsm32_k4096
+Triton autotuning for function matmul_kernel finished after 210.40s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 256, BLOCK_SIZE_K: 32, num_warps: 8, num_ctas: 1, num_stages: 3, maxnreg: None;
+gsm32_k5120
+Triton autotuning for function matmul_kernel finished after 235.74s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 256, BLOCK_SIZE_K: 32, num_warps: 8, num_ctas: 1, num_stages: 4, maxnreg: None;
+gsm32_k6144
+Triton autotuning for function matmul_kernel finished after 261.52s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 256, BLOCK_SIZE_K: 32, num_warps: 8, num_ctas: 1, num_stages: 4, maxnreg: None;
+gsm32_k7168
+Triton autotuning for function matmul_kernel finished after 287.80s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 256, BLOCK_SIZE_K: 32, num_warps: 8, num_ctas: 1, num_stages: 3, maxnreg: None;
+gsm32_k8192
+Triton autotuning for function matmul_kernel finished after 315.94s; best config selected: BLOCK_SIZE_M: 128, BLOCK_SIZE_N: 256, BLOCK_SIZE_K: 32, num_warps: 8, num_ctas: 1, num_stages: 4, maxnreg: None;
