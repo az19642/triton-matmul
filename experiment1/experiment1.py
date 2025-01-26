@@ -9,27 +9,29 @@ import triton.language as tl
 
 def get_area_bound(num_stages):
     """
-    Return the lowest upper bound on valid products of block sizes (area) rounded to the nearest scaled, integer power of 2, based on num_stages.
+    Return a reasonable upper bound on the block sizes dictated by the amount of shared memory.
+
+    Found through manual testing at each num_stage.
     """
     if num_stages == 1:
-        return 2**16
+        return 81920  # 2^{16} + 2^{14}
     elif num_stages == 2:
-        return 2**16
+        return 49152  # 2^{15} + 2^{14}
     elif num_stages == 3:
-        return 2**15
+        return 40960  # 2^{15} + 2^{13}
     elif num_stages == 4:
-        return 2**14 + 2**13  # equiv to 3 * 2**13
+        return 24576  # 2^{14} + 2^{13}
     elif num_stages == 5:
-        return 2**14
+        return 20480  # 2^{14} + 2^{12}
     elif num_stages == 6:
-        return 2**14
+        return 16384  # 2^{13} + 2^{13}
     else:
         raise NotImplementedError
 
 
 def get_benches():
     """
-    Return benches to benchmark and plot using Triton's testing.perf_report function.
+    Construct a list of benches to benchmark and plot using Triton's testing.perf_report function.
     """
     benches = [
         triton.testing.Benchmark(
@@ -51,11 +53,7 @@ def get_benches():
 
 def get_configs():
     """
-    Return a list of configurations to autotune over (GROUP_SIZE_M, K).
-
-    Through testing we found that at num_stages = 2,
-    the maximum product of the block sizes is MAX_BLOCK_SIZE_PROD = 2**23,
-    and each time num_stages is incremented, the bound is doubled.
+    Construct a list of configurations to be used for autotuning over (GROUP_SIZE_M, K).
     """
     configs = [
         triton.Config(
@@ -67,12 +65,13 @@ def get_configs():
             num_stages=ns,
             num_warps=nw,
         )
-        for BSM in [32, 64, 128, 256]
-        for BSN in [32, 64, 128, 256]
-        for BSK in [32, 64, 128, 256]
-        for ns in [1, 2, 3, 4, 5]
-        if BSK * (BSM + BSN) <= get_area_bound(ns)
-        for nw in [1, 2, 4, 8, 16, 32]
+        for BSM in [32, 64, 128, 256, 512]
+        if BSM * int(sys.argv[1]) <= 8192
+        for BSN in [32, 64, 128, 256, 512]
+        for BSK in [32, 64, 128, 256, 512]
+        for ns in [2, 3, 4, 5, 6]
+        if (BSK * (BSM + BSN)) <= get_area_bound(ns)
+        for nw in [4, 8, 16, 32]
     ]
     assert configs, "Configs is empty"
     return configs
@@ -207,7 +206,7 @@ def main():
     output_dir = os.environ.get("SLURM_TMPDIR")
     assert output_dir, "$SLURM_TMPDIR does not exist"
 
-    with open(os.path.join(output_dir, os.path.basename("autotuning.out")), "w") as sys.stdout:
+    with open(os.path.join(output_dir, os.path.basename(f"gsm{int(sys.argv[1])}_autotuning.out")), "w") as sys.stdout:
         sys.stdout.reconfigure(line_buffering=True, write_through=True)
         run_benchmarks()
 
