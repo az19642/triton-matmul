@@ -1,3 +1,73 @@
-<html><body>
-<image src="gsm16_k-autotuned_matmul_row-major_fp16.png"/>
-</body></html>
+<html>
+  <head>
+    <style>
+      body {
+        font-family: Arial;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+      }
+
+      .grid-container {
+        display: grid;
+        gap: 32px 32px;
+        grid-template-columns: auto auto;
+        margin: 20px;
+        background: white;
+      }
+
+      .grid-item {
+        text-align: center;
+      }
+
+      .grid-item h2 {
+        font-size: 20px;
+        margin-bottom: 10px;
+      }
+
+      .grid-item img {
+        max-width: 100%;
+        height: auto;
+        box-shadow: 0 0 10px 5px rgba(0, 0, 0, 0.1);
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="grid-container">
+      <div class="grid-item">
+        <h2>GSM=1</h2>
+        <image src="gsm1_k-autotuned_matmul_row-major_fp16.png" />
+      </div>
+      <div class="grid-item">
+        <h2>GSM=2</h2>
+        <image src="gsm2_k-autotuned_matmul_row-major_fp16.png" />
+      </div>
+      <div class="grid-item">
+        <h2>GSM=4</h2>
+        <image src="gsm4_k-autotuned_matmul_row-major_fp16.png" />
+      </div>
+      <div class="grid-item">
+        <h2>GSM=8</h2>
+        <image src="gsm8_k-autotuned_matmul_row-major_fp16.png" />
+      </div>
+      <div class="grid-item">
+        <h2>GSM=16</h2>
+        <image src="gsm16_k-autotuned_matmul_row-major_fp16.png" />
+      </div>
+      <div class="grid-item">
+        <h2>GSM=32</h2>
+        <image src="gsm32_k-autotuned_matmul_row-major_fp16.png" />
+      </div>
+      <div class="grid-item">
+        <h2>GSM=64</h2>
+        <image src="gsm64_k-autotuned_matmul_row-major_fp16.png" />
+      </div>
+      <div class="grid-item">
+        <h2>GSM=128</h2>
+        <image src="gsm128_k-autotuned_matmul_row-major_fp16.png" />
+      </div>
+    </div>
+  </body>
+</html>
