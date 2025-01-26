@@ -1,46 +1,82 @@
 <!DOCTYPE html>
 <html>
 
+<head>
+    <style>
+        .results {
+            font-family: Arial;
+            margin: 30px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .grid-container {
+            display: grid;
+            gap: 32px 32px;
+            grid-template-columns: repeat(4, 1fr);
+            background: white;
+        }
+
+        .grid-item {
+            text-align: center;
+        }
+
+        .grid-item h2 {
+            font-size: 20px;
+        }
+
+        .grid-item img {
+            max-width: 100%;
+            height: auto;
+            box-shadow: 0 0 5px 2px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+
 <body>
-    <div>
-        <h3>GSM=1</h3>
-        <img src="GSM1_optimal_matmul_row-major-fp16.png" alt="GSM1 Plot" />
-    </div>
-    <div>
-        <h3>GSM=2</h3>
-        <img src="GSM2_optimal_matmul_row-major-fp16.png" alt="GSM2 Plot" />
-    </div>
-    <div>
-        <h3>GSM=4</h3>
-        <img src="GSM4_optimal_matmul_row-major-fp16.png" alt="GSM4 Plot" />
-    </div>
-    <div>
-        <h3>GSM=8</h3>
-        <img src="GSM8_optimal_matmul_row-major-fp16.png" alt="GSM8 Plot" />
-    </div>
-    <div>
-        <h3>GSM=12</h3>
-        <img src="GSM12_optimal_matmul_row-major-fp16.png" alt="GSM12 Plot" />
-    </div>
-    <div>
-        <h3>GSM=16</h3>
-        <img src="GSM16_optimal_matmul_row-major-fp16.png" alt="GSM16 Plot" />
-    </div>
-    <div>
-        <h3>GSM=20</h3>
-        <img src="GSM20_optimal_matmul_row-major-fp16.png" alt="GSM20 Plot" />
-    </div>
-    <div>
-        <h3>GSM=32</h3>
-        <img src="GSM32_optimal_matmul_row-major-fp16.png" alt="GSM32 Plot" />
-    </div>
-    <div>
-        <h3>GSM=48</h3>
-        <img src="GSM48_optimal_matmul_row-major-fp16.png" alt="GSM48 Plot" />
-    </div>
-    <div>
-        <h3>GSM=62</h3>
-        <img src="GSM62_optimal_matmul_row-major-fp16.png" alt="GSM62 Plot" />
+    <div class="results">
+        <div class="grid-container">
+            <div class="grid-item">
+                <h3>GSM=1</h3>
+                <img src="GSM1_optimal_matmul_row-major-fp16.png" alt="GSM1 Plot" />
+            </div>
+            <div class="grid-item">
+                <h3>GSM=2</h3>
+                <img src="GSM2_optimal_matmul_row-major-fp16.png" alt="GSM2 Plot" />
+            </div>
+            <div class="grid-item">
+                <h3>GSM=4</h3>
+                <img src="GSM4_optimal_matmul_row-major-fp16.png" alt="GSM4 Plot" />
+            </div>
+            <div class="grid-item">
+                <h3>GSM=8</h3>
+                <img src="GSM8_optimal_matmul_row-major-fp16.png" alt="GSM8 Plot" />
+            </div>
+            <div class="grid-item">
+                <h3>GSM=12</h3>
+                <img src="GSM12_optimal_matmul_row-major-fp16.png" alt="GSM12 Plot" />
+            </div>
+            <div class="grid-item">
+                <h3>GSM=16</h3>
+                <img src="GSM16_optimal_matmul_row-major-fp16.png" alt="GSM16 Plot" />
+            </div>
+            <div class="grid-item">
+                <h3>GSM=20</h3>
+                <img src="GSM20_optimal_matmul_row-major-fp16.png" alt="GSM20 Plot" />
+            </div>
+            <div class="grid-item">
+                <h3>GSM=32</h3>
+                <img src="GSM32_optimal_matmul_row-major-fp16.png" alt="GSM32 Plot" />
+            </div>
+            <div class="grid-item">
+                <h3>GSM=48</h3>
+                <img src="GSM48_optimal_matmul_row-major-fp16.png" alt="GSM48 Plot" />
+            </div>
+            <div class="grid-item">
+                <h3>GSM=62</h3>
+                <img src="GSM62_optimal_matmul_row-major-fp16.png" alt="GSM62 Plot" />
+            </div>
+        </div>
     </div>
 </body>
 
